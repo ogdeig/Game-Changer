@@ -100,6 +100,12 @@
       opacity: 0.9;
     }
 
+    .status-line {
+      margin-top: 6px;
+      font-size: 0.75rem;
+      opacity: 0.8;
+    }
+
     .functions-table-container {
       margin-top: 10px;
       border-radius: 10px;
@@ -234,25 +240,6 @@
       margin-top: 4px;
     }
 
-    .pill-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.7rem;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid #343454;
-      background: #11111d;
-    }
-
-    .pill-chip span {
-      opacity: 0.9;
-    }
-
-    .pill-chip strong {
-      color: #ff0050;
-    }
-
     .btn {
       display: inline-flex;
       align-items: center;
@@ -274,12 +261,9 @@
       color: #f5f5f5;
     }
 
-    .btn:hover {
-      filter: brightness(1.05);
-    }
-
-    .btn:active {
-      transform: translateY(1px);
+    .btn[disabled] {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     .btn-row {
@@ -330,7 +314,7 @@
 <body>
   <header>
     <h1>TikTok Live Game Function Mapper</h1>
-    <p>Upload your game JS files → auto-detect functions → map them to TikTok chat, gifts, likes, or host controls.</p>
+    <p>Upload your game JS files → click Scan → map functions to TikTok chat, gifts, likes, or host controls.</p>
   </header>
 
   <main>
@@ -340,8 +324,14 @@
         <h2>1. Upload your game files</h2>
         <label for="fileInput">Drop in your JavaScript source files (<code>.js, .ts</code>)</label>
         <input id="fileInput" type="file" multiple accept=".js,.mjs,.ts,.tsx">
-        <div class="hint">This runs entirely in your browser. No code is uploaded anywhere.</div>
+        <div class="status-line" id="fileStatus">No files loaded yet.</div>
         <div id="filesList" class="files-list"></div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn" id="scanBtn" disabled>Scan for functions</button>
+        </div>
+        <div class="hint">
+          This runs entirely in your browser. After uploading, click <strong>Scan for functions</strong> to analyze your game.
+        </div>
       </div>
 
       <div class="card">
@@ -353,12 +343,12 @@
           <!-- table inserted by JS -->
         </div>
         <div class="hint">
-          We scan for:
+          We look for:
           <ul style="margin: 4px 0 0 16px; padding: 0; font-size: 0.7rem;">
             <li><code>function jump() {}</code></li>
             <li><code>const jump = () =&gt; {}</code></li>
             <li><code>const jump = function() {}</code></li>
-            <li>Class methods like <code>jump()</code> inside a class.</li>
+            <li>Class/obj methods like <code>jump()</code> inside a class.</li>
           </ul>
         </div>
       </div>
@@ -376,10 +366,10 @@
           <div class="pill"><strong>Gift type</strong> → specific gift triggers a function</div>
           <div class="pill"><strong>Like / tap</strong> → threshold-based triggers</div>
           <div class="pill"><strong>Host key / mouse</strong> → live host control panel</div>
-          <div class="pill"><strong>Timer</strong> → auto tick, spawn waves, etc.</div>
+          <div class="pill"><strong>Timer</strong> → game ticks, round timers, spawn waves</div>
         </div>
         <p class="hint">
-          Only functions you mark as <strong>Active</strong> in the left table will show up in this mapping config.
+          Only functions you mark as <strong>Active</strong> on the left will be included in this JSON config.
         </p>
       </div>
 
@@ -396,9 +386,7 @@
         </div>
 
         <h3>Integration example (Node / browser)</h3>
-        <div class="sample-code" id="sampleCode">
-          <!-- sample code injected by JS -->
-        </div>
+        <div class="sample-code" id="sampleCode"></div>
       </div>
     </section>
   </main>
@@ -409,11 +397,13 @@
     // ---------------------------
     const state = {
       files: [],            // [{ name, size, content }]
-      functions: [],        // [{ id, name, fileName, type, line, active, mapping: {...} }]
+      functions: []         // [{ id, name, fileName, type, line, active, mapping: {...} }]
     };
 
     const fileInput = document.getElementById('fileInput');
     const filesList = document.getElementById('filesList');
+    const fileStatus = document.getElementById('fileStatus');
+    const scanBtn = document.getElementById('scanBtn');
     const functionsTableContainer = document.getElementById('functionsTableContainer');
     const functionsSummary = document.getElementById('functionsSummary');
     const jsonOutput = document.getElementById('jsonOutput');
@@ -427,26 +417,46 @@
     // ---------------------------
     fileInput.addEventListener('change', async (e) => {
       const files = Array.from(e.target.files || []);
-      if (!files.length) return;
+      if (!files.length) {
+        state.files = [];
+        state.functions = [];
+        renderFilesList();
+        renderFunctionsTable();
+        updateJsonOutput();
+        scanBtn.disabled = true;
+        fileStatus.textContent = 'No files loaded yet.';
+        return;
+      }
+
+      // Reset state
       state.files = [];
       state.functions = [];
       renderFilesList();
       renderFunctionsTable();
       updateJsonOutput();
+      scanBtn.disabled = true;
+      fileStatus.textContent = 'Reading files...';
 
+      // Read all files
       for (const file of files) {
-        const content = await readFileText(file);
-        state.files.push({
-          name: file.name,
-          size: file.size,
-          content
-        });
+        try {
+          const content = await readFileText(file);
+          state.files.push({
+            name: file.name,
+            size: file.size,
+            content
+          });
+        } catch (err) {
+          console.error('Error reading file', file.name, err);
+        }
       }
 
       renderFilesList();
-      extractAllFunctions();
-      renderFunctionsTable();
-      updateJsonOutput();
+      fileStatus.textContent = state.files.length
+        ? 'Files loaded. Click "Scan for functions" to analyze them.'
+        : 'No files loaded (read error).';
+
+      scanBtn.disabled = !state.files.length;
     });
 
     function readFileText(file) {
@@ -460,44 +470,61 @@
 
     function renderFilesList() {
       if (!state.files.length) {
-        filesList.innerHTML = '<div>No files loaded yet.</div>';
+        filesList.innerHTML = '<div style="opacity:0.7;">No files loaded.</div>';
         return;
       }
       const lines = state.files.map(f => {
         const sizeKB = (f.size / 1024).toFixed(1);
-        return \`<div>• \${f.name} <span style="opacity:0.6;">(\${sizeKB} KB)</span></div>\`;
+        return '<div>• ' + f.name + ' <span style="opacity:0.6;">(' + sizeKB + ' KB)</span></div>';
       });
       filesList.innerHTML = lines.join('');
     }
 
     // ---------------------------
-    // Function extraction (simple JS regex-based)
+    // Scan button
+    // ---------------------------
+    scanBtn.addEventListener('click', () => {
+      if (!state.files.length) {
+        alert('Please upload at least one JS file first.');
+        return;
+      }
+      fileStatus.textContent = 'Scanning for functions...';
+      extractAllFunctions();
+      renderFunctionsTable();
+      updateJsonOutput();
+      fileStatus.textContent = state.functions.length
+        ? 'Scan complete. Functions detected and listed below.'
+        : 'Scan complete. No functions detected.';
+    });
+
+    // ---------------------------
+    // Function extraction
     // ---------------------------
     function extractAllFunctions() {
       const results = [];
       const seen = new Set();
 
       for (const file of state.files) {
-        const content = file.content;
-        const fileName = file.name;
+        const content = String(file.content || '');
+        const fileName = file.name || 'unknown';
 
         const patterns = [
           {
             type: 'function_declaration',
-            regex: /function\\s+([A-Za-z0-9_$]+)\\s*\\(/g
+            regex: /function\s+([A-Za-z0-9_$]+)\s*\(/g
           },
           {
             type: 'function_expression',
-            regex: /(?:const|let|var)\\s+([A-Za-z0-9_$]+)\\s*=\\s*function\\s*\\(/g
+            regex: /(?:const|let|var)\s+([A-Za-z0-9_$]+)\s*=\s*function\s*\(/g
           },
           {
             type: 'arrow_function',
-            regex: /(?:const|let|var)\\s+([A-Za-z0-9_$]+)\\s*=\\s*(?:async\\s*)?(?:\\([^)]*\\)|[A-Za-z0-9_$]+)\\s*=>/g
+            regex: /(?:const|let|var)\s+([A-Za-z0-9_$]+)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z0-9_$]+)\s*=>/g
           },
           {
             type: 'method',
-            // This will catch class/obj methods and may also catch some false positives, but it's useful.
-            regex: /(^|\\s)([A-Za-z0-9_$]+)\\s*\\([^)]*\\)\\s*{/gm
+            // Class/obj method (simple heuristic)
+            regex: /(^|\s)([A-Za-z0-9_$]+)\s*\([^)]*\)\s*{/gm
           }
         ];
 
@@ -508,13 +535,15 @@
             const name = pattern.type === 'method' ? match[2] : match[1];
             if (!name) continue;
 
-            const key = \`\${fileName}::\${name}\`;
+            const key = fileName + '::' + name;
             if (seen.has(key)) continue;
             seen.add(key);
 
-            const line = content.slice(0, match.index).split('\\n').length;
+            const before = content.slice(0, match.index);
+            const line = before.split('\n').length;
+
             results.push({
-              id: \`\${fileName}::\${name}::\${results.length}\`,
+              id: fileName + '::' + name + '::' + results.length,
               name,
               fileName,
               type: pattern.type,
@@ -523,7 +552,7 @@
               mapping: {
                 role: 'player',            // 'player' | 'host' | 'system'
                 triggerType: 'none',       // 'none', 'chat_command', 'gift', 'like', 'join', 'host_key', 'host_mouse', 'timer', 'custom'
-                triggerValue: '',          // e.g. '!jump', 'Rose', '100', 'Space', 'left-click'
+                triggerValue: '',          // e.g. '!jump', 'Rose', '100', 'Space'
                 extra: ''                  // free-form notes / conditions
               }
             });
@@ -533,7 +562,7 @@
 
       state.functions = results;
       functionsSummary.textContent = results.length
-        ? \`\${results.length} functions detected across \${state.files.length} file(s).\`
+        ? results.length + ' functions detected across ' + state.files.length + ' file(s).'
         : 'No functions detected yet.';
     }
 
@@ -542,88 +571,95 @@
     // ---------------------------
     function renderFunctionsTable() {
       if (!state.functions.length) {
-        functionsTableContainer.innerHTML = '<div class="hint" style="padding:6px 0 2px;">Upload at least one JS file to see detected functions.</div>';
+        functionsTableContainer.innerHTML =
+          '<div class="hint" style="padding:6px 0 2px;">' +
+          'Upload at least one JS file and click <strong>Scan for functions</strong> to see detected functions.' +
+          '</div>';
         return;
       }
 
-      const header = `
-        <table>
-          <thead>
-            <tr>
-              <th>Active</th>
-              <th>Function</th>
-              <th>File / Line</th>
-              <th>Role</th>
-              <th>Trigger</th>
-              <th>Trigger value</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
+      let html = ''
+        + '<table>'
+        + '  <thead>'
+        + '    <tr>'
+        + '      <th>Active</th>'
+        + '      <th>Function</th>'
+        + '      <th>File / Line</th>'
+        + '      <th>Role</th>'
+        + '      <th>Trigger</th>'
+        + '      <th>Trigger value</th>'
+        + '      <th>Notes</th>'
+        + '    </tr>'
+        + '  </thead>'
+        + '  <tbody>';
 
-      const rows = state.functions.map(fn => {
+      for (const fn of state.functions) {
         const role = fn.mapping.role || 'player';
         const triggerType = fn.mapping.triggerType || 'none';
         const triggerValue = fn.mapping.triggerValue || '';
         const extra = fn.mapping.extra || '';
 
-        return `
-          <tr data-id="${fn.id}">
-            <td>
-              <input type="checkbox" class="fn-active" ${fn.active ? 'checked' : ''}>
-            </td>
-            <td>
-              <div class="badge">
-                <span class="badge-dot"></span>
-                <span>${fn.name}</span>
-              </div>
-              <div style="font-size:0.65rem;opacity:0.7;margin-top:2px;">
-                ${fn.type.replace(/_/g, ' ')}
-              </div>
-            </td>
-            <td>
-              <div style="font-size:0.75rem;">${fn.fileName}</div>
-              <div style="font-size:0.65rem;opacity:0.7;">Line ${fn.line}</div>
-            </td>
-            <td>
-              <select class="fn-role small-input">
-                <option value="player" ${role === 'player' ? 'selected' : ''}>Player</option>
-                <option value="host" ${role === 'host' ? 'selected' : ''}>Host-only</option>
-                <option value="system" ${role === 'system' ? 'selected' : ''}>System</option>
-              </select>
-            </td>
-            <td>
-              <select class="fn-trigger small-input">
-                <option value="none" ${triggerType === 'none' ? 'selected' : ''}>None</option>
-                <option value="chat_command" ${triggerType === 'chat_command' ? 'selected' : ''}>Chat command</option>
-                <option value="gift" ${triggerType === 'gift' ? 'selected' : ''}>Gift type</option>
-                <option value="like" ${triggerType === 'like' ? 'selected' : ''}>Like / tap</option>
-                <option value="join" ${triggerType === 'join' ? 'selected' : ''}>Viewer join</option>
-                <option value="host_key" ${triggerType === 'host_key' ? 'selected' : ''}>Host key</option>
-                <option value="host_mouse" ${triggerType === 'host_mouse' ? 'selected' : ''}>Host mouse</option>
-                <option value="timer" ${triggerType === 'timer' ? 'selected' : ''}>Timer</option>
-                <option value="custom" ${triggerType === 'custom' ? 'selected' : ''}>Custom</option>
-              </select>
-            </td>
-            <td>
-              <input type="text" class="fn-trigger-value small-input" placeholder="e.g. !jump / Rose / Space" value="${escapeHtmlAttr(triggerValue)}">
-            </td>
-            <td>
-              <input type="text" class="fn-extra" placeholder="Conditions, thresholds, notes..." value="${escapeHtmlAttr(extra)}">
-            </td>
-          </tr>
-        `;
-      }).join('');
+        html += ''
+          + '<tr data-id="' + fn.id + '">'
+          + '  <td><input type="checkbox" class="fn-active" ' + (fn.active ? 'checked' : '') + '></td>'
+          + '  <td>'
+          + '    <div class="badge">'
+          + '      <span class="badge-dot"></span>'
+          + '      <span>' + escapeHtml(fn.name) + '</span>'
+          + '    </div>'
+          + '    <div style="font-size:0.65rem;opacity:0.7;margin-top:2px;">'
+          +        escapeHtml(fn.type.replace(/_/g, ' '))
+          + '    </div>'
+          + '  </td>'
+          + '  <td>'
+          + '    <div style="font-size:0.75rem;">' + escapeHtml(fn.fileName) + '</div>'
+          + '    <div style="font-size:0.65rem;opacity:0.7;">Line ' + fn.line + '</div>'
+          + '  </td>'
+          + '  <td>'
+          + '    <select class="fn-role small-input">'
+          + '      <option value="player"' + (role === 'player' ? ' selected' : '') + '>Player</option>'
+          + '      <option value="host"' + (role === 'host' ? ' selected' : '') + '>Host-only</option>'
+          + '      <option value="system"' + (role === 'system' ? ' selected' : '') + '>System</option>'
+          + '    </select>'
+          + '  </td>'
+          + '  <td>'
+          + '    <select class="fn-trigger small-input">'
+          + '      <option value="none"' + (triggerType === 'none' ? ' selected' : '') + '>None</option>'
+          + '      <option value="chat_command"' + (triggerType === 'chat_command' ? ' selected' : '') + '>Chat command</option>'
+          + '      <option value="gift"' + (triggerType === 'gift' ? ' selected' : '') + '>Gift type</option>'
+          + '      <option value="like"' + (triggerType === 'like' ? ' selected' : '') + '>Like / tap</option>'
+          + '      <option value="join"' + (triggerType === 'join' ? ' selected' : '') + '>Viewer join</option>'
+          + '      <option value="host_key"' + (triggerType === 'host_key' ? ' selected' : '') + '>Host key</option>'
+          + '      <option value="host_mouse"' + (triggerType === 'host_mouse' ? ' selected' : '') + '>Host mouse</option>'
+          + '      <option value="timer"' + (triggerType === 'timer' ? ' selected' : '') + '>Timer</option>'
+          + '      <option value="custom"' + (triggerType === 'custom' ? ' selected' : '') + '>Custom</option>'
+          + '    </select>'
+          + '  </td>'
+          + '  <td>'
+          + '    <input type="text" class="fn-trigger-value small-input"'
+          + '      placeholder="e.g. !jump / Rose / Space"'
+          + '      value="' + escapeHtmlAttr(triggerValue) + '">'
+          + '  </td>'
+          + '  <td>'
+          + '    <input type="text" class="fn-extra"'
+          + '      placeholder="Conditions, thresholds, notes..."'
+          + '      value="' + escapeHtmlAttr(extra) + '">'
+          + '  </td>'
+          + '</tr>';
+      }
 
-      const footer = `
-          </tbody>
-        </table>
-      `;
-
-      functionsTableContainer.innerHTML = header + rows + footer;
+      html += '  </tbody></table>';
+      functionsTableContainer.innerHTML = html;
 
       attachTableListeners();
+    }
+
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
     }
 
     function escapeHtmlAttr(str) {
@@ -698,15 +734,15 @@
 
       jsonOutput.value = JSON.stringify(config, null, 2);
       activeCountLabel.textContent = activeFns.length
-        ? \`\${activeFns.length} mapped function(s)\`
+        ? activeFns.length + ' mapped function(s)'
         : '0 mapped functions';
 
       renderSampleCode(config);
     }
 
     function renderSampleCode(config) {
-      const snippet = `
-/**
+      const snippet =
+`/**
  * Example usage (Node / browser, pseudo-code).
  * Load this JSON and wire it into your TikTok Live connector.
  */
@@ -728,12 +764,10 @@ function findMappingsByTrigger(type, value) {
 
 function handleChat(event) {
   const text = event.comment || '';
-  const [command] = text.trim().split(/\\s+/);
+  const command = text.trim().split(/\\s+/)[0];
   const matches = findMappingsByTrigger('chat_command', command);
 
   for (const m of matches) {
-    // Example: call window[m.name]() in browser,
-    // or require the file + call in Node.
     tryInvokeGameFunction(m.name, event, m);
   }
 }
@@ -748,7 +782,7 @@ function handleGift(event) {
 
 function handleLike(event) {
   const totalLikes = event.totalLikeCount; // depends on lib
-  // You could treat trigger.value as a threshold:
+  // Treat trigger.value as a threshold (e.g. every 100 likes)
   mappingConfig.mappings
     .filter(m => m.trigger.type === 'like' && Number(m.trigger.value) > 0)
     .forEach(m => {
@@ -760,19 +794,18 @@ function handleLike(event) {
 
 function tryInvokeGameFunction(functionName, rawEvent, mapping) {
   if (typeof window !== 'undefined' && typeof window[functionName] === 'function') {
-    // Browser game
+    // Browser game: function is global
     window[functionName]({ rawEvent, mapping });
   } else if (typeof global !== 'undefined') {
-    // Node: you might import your game module and call it here.
-    // Example (pseudo-code):
+    // Node: import your game module here, e.g.:
     // const game = require('./dist/game');
-    // if (typeof game[functionName] === 'function') game[functionName]({ rawEvent, mapping });
+    // if (typeof game[functionName] === 'function') {
+    //   game[functionName]({ rawEvent, mapping });
+    // }
   } else {
     console.warn('Could not invoke function', functionName);
   }
-}
-      `.trim();
-
+}`;
       sampleCodeEl.textContent = snippet;
     }
 
@@ -797,7 +830,7 @@ function tryInvokeGameFunction(functionName, rawEvent, mapping) {
       URL.revokeObjectURL(url);
     });
 
-    // Initial sample code (empty)
+    // Initialize with empty config so the sample block isn't blank
     updateJsonOutput();
   </script>
 </body>
