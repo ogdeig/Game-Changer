@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TikTok Live Game Function Mapper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b0b10;
+      color: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 12px 20px;
+      border-bottom: 1px solid #222;
+      background: linear-gradient(90deg, #ff0050, #00f2ea);
+      color: #000;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    header p {
+      margin: 4px 0 0;
+      font-size: 0.85rem;
+      opacity: 0.85;
+    }
+
+    main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .panel {
+      padding: 14px 16px;
+      overflow: auto;
+    }
+
+    .panel-left {
+      width: 52%;
+      border-right: 1px solid #222;
+      background: #07070b;
+    }
+
+    .panel-right {
+      flex: 1;
+      background: #050509;
+    }
+
+    h2 {
+      font-size: 1rem;
+      margin: 0 0 8px;
+    }
+
+    h3 {
+      font-size: 0.95rem;
+      margin: 12px 0 4px;
+    }
+
+    .card {
+      border-radius: 10px;
+      background: #11121a;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #242636;
+    }
+
+    label {
+      font-size: 0.85rem;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+    }
+
+    .files-list {
+      font-size: 0.8rem;
+      margin-top: 6px;
+      max-height: 90px;
+      overflow-y: auto;
+      border-radius: 6px;
+      background: #090910;
+      padding: 6px 8px;
+      border: 1px dashed #303040;
+    }
+
+    .files-list div {
+      padding: 2px 0;
+      opacity: 0.9;
+    }
+
+    .functions-table-container {
+      margin-top: 10px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #26263a;
+      max-height: calc(100vh - 250px);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    thead {
+      background: #181924;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #1b1b27;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #0f0f17;
+    }
+
+    tbody tr:nth-child(odd) {
+      background: #10101a;
+    }
+
+    th {
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      background: #181823;
+      border: 1px solid #282840;
+      gap: 4px;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #00f2ea;
+    }
+
+    select, input[type="text"] {
+      background: #10101a;
+      color: #f5f5f5;
+      border-radius: 6px;
+      border: 1px solid #313147;
+      font-size: 0.75rem;
+      padding: 4px 6px;
+      width: 100%;
+    }
+
+    select:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #00f2ea;
+      box-shadow: 0 0 0 1px rgba(0,242,234,0.3);
+    }
+
+    .small-input {
+      max-width: 120px;
+    }
+
+    .config-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .config-header span {
+      font-size: 0.78rem;
+      opacity: 0.85;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 160px;
+      border-radius: 8px;
+      border: 1px solid #29293d;
+      background: #050507;
+      color: #f5f5f5;
+      font-size: 0.8rem;
+      padding: 8px;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      resize: vertical;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 6px 0 2px;
+    }
+
+    .pill {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #303048;
+      background: #131320;
+      cursor: default;
+      opacity: 0.9;
+    }
+
+    .pill strong {
+      color: #00f2ea;
+    }
+
+    .hint {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+
+    .pill-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #343454;
+      background: #11111d;
+    }
+
+    .pill-chip span {
+      opacity: 0.9;
+    }
+
+    .pill-chip strong {
+      color: #ff0050;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid #ff0050;
+      background: #ff0050;
+      color: #fff;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      gap: 6px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border-color: #44445f;
+      color: #f5f5f5;
+    }
+
+    .btn:hover {
+      filter: brightness(1.05);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.75rem;
+      background: #11111a;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    .sample-code {
+      font-size: 0.75rem;
+      white-space: pre;
+      overflow-x: auto;
+      background: #050508;
+      border-radius: 8px;
+      border: 1px solid #26263a;
+      padding: 8px;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        flex-direction: column;
+      }
+      .panel-left {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #222;
+        max-height: 60vh;
+      }
+      .panel-right {
+        max-height: 40vh;
+      }
+      .functions-table-container {
+        max-height: 260px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>TikTok Live Game Function Mapper</h1>
+    <p>Upload your game JS files → auto-detect functions → map them to TikTok chat, gifts, likes, or host controls.</p>
+  </header>
+
+  <main>
+    <!-- LEFT PANEL: Upload + Functions -->
+    <section class="panel panel-left">
+      <div class="card">
+        <h2>1. Upload your game files</h2>
+        <label for="fileInput">Drop in your JavaScript source files (<code>.js, .ts</code>)</label>
+        <input id="fileInput" type="file" multiple accept=".js,.mjs,.ts,.tsx">
+        <div class="hint">This runs entirely in your browser. No code is uploaded anywhere.</div>
+        <div id="filesList" class="files-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="config-header">
+          <h2>2. Detected functions</h2>
+          <span id="functionsSummary">No functions detected yet.</span>
+        </div>
+        <div class="functions-table-container" id="functionsTableContainer">
+          <!-- table inserted by JS -->
+        </div>
+        <div class="hint">
+          We scan for:
+          <ul style="margin: 4px 0 0 16px; padding: 0; font-size: 0.7rem;">
+            <li><code>function jump() {}</code></li>
+            <li><code>const jump = () =&gt; {}</code></li>
+            <li><code>const jump = function() {}</code></li>
+            <li>Class methods like <code>jump()</code> inside a class.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Mapping + Output -->
+    <section class="panel panel-right">
+      <div class="card">
+        <div class="config-header">
+          <h2>3. Map functions to TikTok events</h2>
+          <span>Choose triggers for the functions you want to use on live shows.</span>
+        </div>
+        <div class="pill-row">
+          <div class="pill"><strong>Chat command</strong> → user types <code>!jump</code></div>
+          <div class="pill"><strong>Gift type</strong> → specific gift triggers a function</div>
+          <div class="pill"><strong>Like / tap</strong> → threshold-based triggers</div>
+          <div class="pill"><strong>Host key / mouse</strong> → live host control panel</div>
+          <div class="pill"><strong>Timer</strong> → auto tick, spawn waves, etc.</div>
+        </div>
+        <p class="hint">
+          Only functions you mark as <strong>Active</strong> in the left table will show up in this mapping config.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="config-header">
+          <h3>JSON mapping configuration</h3>
+          <span id="activeCountLabel">0 mapped functions</span>
+        </div>
+        <textarea id="jsonOutput" readonly></textarea>
+
+        <div class="btn-row">
+          <button class="btn" id="copyJsonBtn">Copy JSON</button>
+          <button class="btn btn-outline" id="downloadJsonBtn">Download JSON</button>
+        </div>
+
+        <h3>Integration example (Node / browser)</h3>
+        <div class="sample-code" id="sampleCode">
+          <!-- sample code injected by JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------------------------
+    // State
+    // ---------------------------
+    const state = {
+      files: [],            // [{ name, size, content }]
+      functions: [],        // [{ id, name, fileName, type, line, active, mapping: {...} }]
+    };
+
+    const fileInput = document.getElementById('fileInput');
+    const filesList = document.getElementById('filesList');
+    const functionsTableContainer = document.getElementById('functionsTableContainer');
+    const functionsSummary = document.getElementById('functionsSummary');
+    const jsonOutput = document.getElementById('jsonOutput');
+    const activeCountLabel = document.getElementById('activeCountLabel');
+    const copyJsonBtn = document.getElementById('copyJsonBtn');
+    const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+    const sampleCodeEl = document.getElementById('sampleCode');
+
+    // ---------------------------
+    // File handling
+    // ---------------------------
+    fileInput.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      state.files = [];
+      state.functions = [];
+      renderFilesList();
+      renderFunctionsTable();
+      updateJsonOutput();
+
+      for (const file of files) {
+        const content = await readFileText(file);
+        state.files.push({
+          name: file.name,
+          size: file.size,
+          content
+        });
+      }
+
+      renderFilesList();
+      extractAllFunctions();
+      renderFunctionsTable();
+      updateJsonOutput();
+    });
+
+    function readFileText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    }
+
+    function renderFilesList() {
+      if (!state.files.length) {
+        filesList.innerHTML = '<div>No files loaded yet.</div>';
+        return;
+      }
+      const lines = state.files.map(f => {
+        const sizeKB = (f.size / 1024).toFixed(1);
+        return \`<div>• \${f.name} <span style="opacity:0.6;">(\${sizeKB} KB)</span></div>\`;
+      });
+      filesList.innerHTML = lines.join('');
+    }
+
+    // ---------------------------
+    // Function extraction (simple JS regex-based)
+    // ---------------------------
+    function extractAllFunctions() {
+      const results = [];
+      const seen = new Set();
+
+      for (const file of state.files) {
+        const content = file.content;
+        const fileName = file.name;
+
+        const patterns = [
+          {
+            type: 'function_declaration',
+            regex: /function\\s+([A-Za-z0-9_$]+)\\s*\\(/g
+          },
+          {
+            type: 'function_expression',
+            regex: /(?:const|let|var)\\s+([A-Za-z0-9_$]+)\\s*=\\s*function\\s*\\(/g
+          },
+          {
+            type: 'arrow_function',
+            regex: /(?:const|let|var)\\s+([A-Za-z0-9_$]+)\\s*=\\s*(?:async\\s*)?(?:\\([^)]*\\)|[A-Za-z0-9_$]+)\\s*=>/g
+          },
+          {
+            type: 'method',
+            // This will catch class/obj methods and may also catch some false positives, but it's useful.
+            regex: /(^|\\s)([A-Za-z0-9_$]+)\\s*\\([^)]*\\)\\s*{/gm
+          }
+        ];
+
+        for (const pattern of patterns) {
+          pattern.regex.lastIndex = 0;
+          let match;
+          while ((match = pattern.regex.exec(content)) !== null) {
+            const name = pattern.type === 'method' ? match[2] : match[1];
+            if (!name) continue;
+
+            const key = \`\${fileName}::\${name}\`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            const line = content.slice(0, match.index).split('\\n').length;
+            results.push({
+              id: \`\${fileName}::\${name}::\${results.length}\`,
+              name,
+              fileName,
+              type: pattern.type,
+              line,
+              active: false,
+              mapping: {
+                role: 'player',            // 'player' | 'host' | 'system'
+                triggerType: 'none',       // 'none', 'chat_command', 'gift', 'like', 'join', 'host_key', 'host_mouse', 'timer', 'custom'
+                triggerValue: '',          // e.g. '!jump', 'Rose', '100', 'Space', 'left-click'
+                extra: ''                  // free-form notes / conditions
+              }
+            });
+          }
+        }
+      }
+
+      state.functions = results;
+      functionsSummary.textContent = results.length
+        ? \`\${results.length} functions detected across \${state.files.length} file(s).\`
+        : 'No functions detected yet.';
+    }
+
+    // ---------------------------
+    // Render functions table
+    // ---------------------------
+    function renderFunctionsTable() {
+      if (!state.functions.length) {
+        functionsTableContainer.innerHTML = '<div class="hint" style="padding:6px 0 2px;">Upload at least one JS file to see detected functions.</div>';
+        return;
+      }
+
+      const header = `
+        <table>
+          <thead>
+            <tr>
+              <th>Active</th>
+              <th>Function</th>
+              <th>File / Line</th>
+              <th>Role</th>
+              <th>Trigger</th>
+              <th>Trigger value</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      const rows = state.functions.map(fn => {
+        const role = fn.mapping.role || 'player';
+        const triggerType = fn.mapping.triggerType || 'none';
+        const triggerValue = fn.mapping.triggerValue || '';
+        const extra = fn.mapping.extra || '';
+
+        return `
+          <tr data-id="${fn.id}">
+            <td>
+              <input type="checkbox" class="fn-active" ${fn.active ? 'checked' : ''}>
+            </td>
+            <td>
+              <div class="badge">
+                <span class="badge-dot"></span>
+                <span>${fn.name}</span>
+              </div>
+              <div style="font-size:0.65rem;opacity:0.7;margin-top:2px;">
+                ${fn.type.replace(/_/g, ' ')}
+              </div>
+            </td>
+            <td>
+              <div style="font-size:0.75rem;">${fn.fileName}</div>
+              <div style="font-size:0.65rem;opacity:0.7;">Line ${fn.line}</div>
+            </td>
+            <td>
+              <select class="fn-role small-input">
+                <option value="player" ${role === 'player' ? 'selected' : ''}>Player</option>
+                <option value="host" ${role === 'host' ? 'selected' : ''}>Host-only</option>
+                <option value="system" ${role === 'system' ? 'selected' : ''}>System</option>
+              </select>
+            </td>
+            <td>
+              <select class="fn-trigger small-input">
+                <option value="none" ${triggerType === 'none' ? 'selected' : ''}>None</option>
+                <option value="chat_command" ${triggerType === 'chat_command' ? 'selected' : ''}>Chat command</option>
+                <option value="gift" ${triggerType === 'gift' ? 'selected' : ''}>Gift type</option>
+                <option value="like" ${triggerType === 'like' ? 'selected' : ''}>Like / tap</option>
+                <option value="join" ${triggerType === 'join' ? 'selected' : ''}>Viewer join</option>
+                <option value="host_key" ${triggerType === 'host_key' ? 'selected' : ''}>Host key</option>
+                <option value="host_mouse" ${triggerType === 'host_mouse' ? 'selected' : ''}>Host mouse</option>
+                <option value="timer" ${triggerType === 'timer' ? 'selected' : ''}>Timer</option>
+                <option value="custom" ${triggerType === 'custom' ? 'selected' : ''}>Custom</option>
+              </select>
+            </td>
+            <td>
+              <input type="text" class="fn-trigger-value small-input" placeholder="e.g. !jump / Rose / Space" value="${escapeHtmlAttr(triggerValue)}">
+            </td>
+            <td>
+              <input type="text" class="fn-extra" placeholder="Conditions, thresholds, notes..." value="${escapeHtmlAttr(extra)}">
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const footer = `
+          </tbody>
+        </table>
+      `;
+
+      functionsTableContainer.innerHTML = header + rows + footer;
+
+      attachTableListeners();
+    }
+
+    function escapeHtmlAttr(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function attachTableListeners() {
+      const rows = functionsTableContainer.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        const id = row.getAttribute('data-id');
+        const fn = state.functions.find(f => f.id === id);
+        if (!fn) return;
+
+        const activeCheckbox = row.querySelector('.fn-active');
+        const roleSelect = row.querySelector('.fn-role');
+        const triggerSelect = row.querySelector('.fn-trigger');
+        const triggerValueInput = row.querySelector('.fn-trigger-value');
+        const extraInput = row.querySelector('.fn-extra');
+
+        activeCheckbox.addEventListener('change', () => {
+          fn.active = activeCheckbox.checked;
+          updateJsonOutput();
+        });
+
+        roleSelect.addEventListener('change', () => {
+          fn.mapping.role = roleSelect.value;
+          updateJsonOutput();
+        });
+
+        triggerSelect.addEventListener('change', () => {
+          fn.mapping.triggerType = triggerSelect.value;
+          updateJsonOutput();
+        });
+
+        triggerValueInput.addEventListener('input', () => {
+          fn.mapping.triggerValue = triggerValueInput.value;
+          updateJsonOutput();
+        });
+
+        extraInput.addEventListener('input', () => {
+          fn.mapping.extra = extraInput.value;
+          updateJsonOutput();
+        });
+      });
+    }
+
+    // ---------------------------
+    // JSON export + sample code
+    // ---------------------------
+    function updateJsonOutput() {
+      const activeFns = state.functions.filter(fn => fn.active);
+      const config = {
+        generatedAt: new Date().toISOString(),
+        files: state.files.map(f => f.name),
+        mappings: activeFns.map(fn => ({
+          name: fn.name,
+          file: fn.fileName,
+          line: fn.line,
+          role: fn.mapping.role,
+          trigger: {
+            type: fn.mapping.triggerType,
+            value: fn.mapping.triggerValue,
+            extra: fn.mapping.extra
+          }
+        }))
+      };
+
+      jsonOutput.value = JSON.stringify(config, null, 2);
+      activeCountLabel.textContent = activeFns.length
+        ? \`\${activeFns.length} mapped function(s)\`
+        : '0 mapped functions';
+
+      renderSampleCode(config);
+    }
+
+    function renderSampleCode(config) {
+      const snippet = `
+/**
+ * Example usage (Node / browser, pseudo-code).
+ * Load this JSON and wire it into your TikTok Live connector.
+ */
+const mappingConfig = ${JSON.stringify(config, null, 2)};
+
+/**
+ * Suppose you already have something like:
+ *   tiktokClient.on('chat', handleChat);
+ *   tiktokClient.on('gift', handleGift);
+ *   tiktokClient.on('like', handleLike);
+ */
+
+function findMappingsByTrigger(type, value) {
+  return mappingConfig.mappings.filter(m =>
+    m.trigger.type === type &&
+    (m.trigger.value || '').toLowerCase() === String(value || '').toLowerCase()
+  );
+}
+
+function handleChat(event) {
+  const text = event.comment || '';
+  const [command] = text.trim().split(/\\s+/);
+  const matches = findMappingsByTrigger('chat_command', command);
+
+  for (const m of matches) {
+    // Example: call window[m.name]() in browser,
+    // or require the file + call in Node.
+    tryInvokeGameFunction(m.name, event, m);
+  }
+}
+
+function handleGift(event) {
+  const giftName = event.giftName; // normalize to your library
+  const matches = findMappingsByTrigger('gift', giftName);
+  for (const m of matches) {
+    tryInvokeGameFunction(m.name, event, m);
+  }
+}
+
+function handleLike(event) {
+  const totalLikes = event.totalLikeCount; // depends on lib
+  // You could treat trigger.value as a threshold:
+  mappingConfig.mappings
+    .filter(m => m.trigger.type === 'like' && Number(m.trigger.value) > 0)
+    .forEach(m => {
+      if (totalLikes % Number(m.trigger.value) === 0) {
+        tryInvokeGameFunction(m.name, event, m);
+      }
+    });
+}
+
+function tryInvokeGameFunction(functionName, rawEvent, mapping) {
+  if (typeof window !== 'undefined' && typeof window[functionName] === 'function') {
+    // Browser game
+    window[functionName]({ rawEvent, mapping });
+  } else if (typeof global !== 'undefined') {
+    // Node: you might import your game module and call it here.
+    // Example (pseudo-code):
+    // const game = require('./dist/game');
+    // if (typeof game[functionName] === 'function') game[functionName]({ rawEvent, mapping });
+  } else {
+    console.warn('Could not invoke function', functionName);
+  }
+}
+      `.trim();
+
+      sampleCodeEl.textContent = snippet;
+    }
+
+    copyJsonBtn.addEventListener('click', () => {
+      jsonOutput.select();
+      document.execCommand('copy');
+      copyJsonBtn.textContent = 'Copied!';
+      setTimeout(() => {
+        copyJsonBtn.textContent = 'Copy JSON';
+      }, 900);
+    });
+
+    downloadJsonBtn.addEventListener('click', () => {
+      const blob = new Blob([jsonOutput.value || '{}'], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tiktok-function-mapping.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Initial sample code (empty)
+    updateJsonOutput();
+  </script>
+</body>
+</html>
